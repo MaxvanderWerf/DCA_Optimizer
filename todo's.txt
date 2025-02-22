@@ -1,0 +1,39 @@
+TO-DO's for next time:
+
+0. To find out about time in the market vs. timing the market, also find a way to see whether strategies that had
+more money invested for a longer time period, had a higher return.
+
+____
+
+Grote dingen:
+- Zorg dat de strategieen zo goed als precies aan de regels van DCA en DeGiro en de echte wereld houden:
+    - Check if RSI zich wel aan de regels van DCA houdt: je mag niet opeens meer dan 1000 per maand inzetten, alleen minder
+en dan de rest sparen.
+
+- Add option to try out multiple assets in one portfolio, and different proportions of each asset.
+
+- Manier vinden om niet alleen allerlei verschillende scenario's te testen, maar ook om een soort gemiddelde van alle
+scenario's te krijgen, en dan dus te kijken welke strategie het beste is.
+
+- Schrijf een Medium artikel van twee delen
+    - Leg de context uit
+        - time in the market beats timing the market
+        - twijfels bij Efficient Market Hypothesis, toch een iets actievere strategie
+    - Leg de code uit
+    - Leg de resultaten uit
+
+
+
+Kleine dingen:
+1. Try out different variations of the strategies, so that the sample size is bigger. For example, for the RSI try out
+ different values for the RSI, and for the mean reversion try out different values for the moving average. Also
+ experiment with different time periods.
+
+2. Streamlit app:
+- Zorg dat de datums in de grafieken er beter uit ziet.
+- Zorg dat er overal de juiste units (% en valuta) en afrondingen worden gebruikt en dat namen er goed uitzien
+met hoofdletters en zonder underscores etc.
+- Optie voor dollars en euro's
+- Inleiding
+    - Uitleg over de verschillende strategieen, hoe de simulatie werkt, evt. linkjes naar Medium article en website
+
