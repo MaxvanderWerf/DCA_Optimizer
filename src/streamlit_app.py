@@ -69,7 +69,10 @@ def create_interactive_portfolio_value_plot(simulation_results, identifier):
         title=f'Portfolio Value Over Time - {identifier}',
         xaxis_title='Date',
         yaxis_title='Portfolio Value ($)',
-        xaxis_range=[min_date, max_date]
+        xaxis_range=[min_date, max_date],
+        plot_bgcolor='#112240',
+        paper_bgcolor='#112240',
+        font_color='white'
     )
     return fig
 
@@ -81,232 +84,62 @@ def create_interactive_investment_decisions_plot(simulation_results, identifier)
                                  mode='lines+markers', name=f'{strategy} - Invested'))
         fig.add_trace(go.Scatter(x=result.index, y=result['Cash_Balance'],
                                  mode='lines', name=f'{strategy} - Cash Balance', line=dict(dash='dash')))
-    fig.update_layout(title=f'Investment Decisions Over Time - {identifier}',
-                      xaxis_title='Date', yaxis_title='Amount ($)')
+    fig.update_layout(
+        title=f'Investment Decisions Over Time - {identifier}',
+        xaxis_title='Date',
+        yaxis_title='Amount ($)',
+        plot_bgcolor='#112240',
+        paper_bgcolor='#112240',
+        font_color='white'
+    )
     return fig
 
 
 def set_custom_style():
     st.markdown("""
         <style>
-        /* Main theme colors */
-        .stApp {
-            background-color: #0A192F;
+        /* Color palette */
+        :root {
+            --navy: #0A192F;         /* Darkest blue - main background */
+            --light-navy: #112240;   /* Lighter blue - container background */
+            --cyan: #64FFDA;         /* Cyan - accents and highlights */
         }
         
-        /* Headers */
+        /* Main background */
+        .stApp {
+            background-color: var(--navy);
+        }
+        
+        /* Main header */
         .main-header {
-            font-family: 'Calibre', sans-serif;
+            color: white;
             font-size: 42px;
             font-weight: 600;
-            color: #CCD6F6;
             margin-bottom: 30px;
         }
         
-        /* Metric cards */
-        .metric-card {
-            background-color: #112240;
-            padding: 20px;
-            border-radius: 4px;
-            border: 1px solid #1E3A5F;
-        }
-        
-        /* Plots and DataFrames */
-        .stPlotlyChart, .stDataFrame {
-            background-color: #112240;
-            border: 1px solid #1E3A5F;
-            border-radius: 4px;
-            padding: 10px;
-        }
-        
         /* Metrics */
-        div[data-testid="stMetricValue"] {
-            font-size: 24px;
-            color: #64FFDA;
+        [data-testid="stMetricValue"] {
+            color: var(--cyan);
         }
         
-        /* Sidebar */
-        section[data-testid="stSidebar"] {
-            background-color: #112240;
-            border-right: 1px solid #1E3A5F;
-            padding: 1rem;
-            width: 300px !important;
+        /* Container styling */
+        [data-testid="stDataFrame"], 
+        [data-testid="stPlotlyChart"] {
+            background-color: var(--light-navy);
         }
-        
-        section[data-testid="stSidebar"] .block-container {
-            padding-top: 2rem;
-            font-size: 0.9rem;
+
+        /* Strategy tags in multiselect */
+        [data-testid="stMultiSelect"] span[data-baseweb="tag"] {
+            background-color: var(--light-navy);
+            color: var(--cyan);
         }
-        
-        section[data-testid="stSidebar"] h1, 
-        section[data-testid="stSidebar"] h2, 
-        section[data-testid="stSidebar"] h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin: 0 0 1rem 0;
-        }
-        
-        section[data-testid="stSidebar"] .stTextInput input {
-            font-size: 0.9rem;
-        }
-        
-        section[data-testid="stSidebar"] .stNumberInput input {
-            font-size: 0.9rem;
-        }
-        
-        section[data-testid="stSidebar"] .stDateInput input {
-            font-size: 0.9rem;
-        }
-        
-        /* View Popular button */
-        section[data-testid="stSidebar"] [data-testid="baseButton-secondary"] {
-            background: none !important;
-            border: none !important;
-            color: #64FFDA !important;
-            padding: 0 !important;
-            font-size: 0.85rem !important;
-            min-height: 0 !important;
-            margin: 0 !important;
-            transform: translateY(8px);
-        }
-        
-        section[data-testid="stSidebar"] [data-testid="baseButton-secondary"]:hover {
-            color: #8892B0 !important;
-            box-shadow: none !important;
-        }
-        
-        /* Caption text */
-        section[data-testid="stSidebar"] .stCaption {
-            font-size: 0.8rem !important;
-            color: #8892B0 !important;
-        }
-        
-        /* Success message */
-        section[data-testid="stSidebar"] .stSuccess {
-            font-size: 0.85rem !important;
-            padding: 0.5rem !important;
-            margin: 0.5rem 0 !important;
-        }
-        
-        /* Metrics in sidebar */
-        section[data-testid="stSidebar"] [data-testid="stMetricValue"] {
-            font-size: 1.1rem !important;
-        }
-        
-        section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {
-            font-size: 0.85rem !important;
-        }
-        
-        /* Regular Buttons */
+
+        /* Run Simulation button */
         .stButton button {
             background-color: transparent;
-            color: #8892B0;
-            border: 1px solid #8892B0;
-            border-radius: 4px;
-            padding: 8px 16px;
-            transition: all 0.2s ease;
-            margin: 0 4px;  /* Add spacing between buttons */
-            white-space: nowrap;  /* Prevent text wrapping */
-            min-width: fit-content;  /* Ensure button fits text */
-        }
-        
-        .stButton button:hover {
-            background-color: rgba(136, 146, 176, 0.1);
-            border-color: #CCD6F6;
-            color: #CCD6F6;
-        }
-        
-        /* Run Simulation Button - Special styling */
-        .run-simulation-btn {
-            background-color: transparent !important;
-            color: #64FFDA !important;
-            border: 1px solid #64FFDA !important;
-            border-radius: 4px !important;
-            padding: 12px 24px !important;
-            font-size: 16px !important;
-            font-weight: 500 !important;
-            transition: all 0.2s ease !important;
-        }
-        
-        .run-simulation-btn:hover {
-            background-color: rgba(100, 255, 218, 0.1) !important;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(100, 255, 218, 0.1);
-        }
-        
-        /* Text inputs - specifically for symbol and investment amounts */
-        .stTextInput input:not([type="date"]), 
-        .stNumberInput input {
-            background-color: #0A192F !important;
-            border: 1px solid #1E3A5F;
-            color: #CCD6F6;
-            border-radius: 4px;
-        }
-        
-        /* Keep date inputs with dark blue background */
-        input[type="date"] {
-            background-color: #112240 !important;
-            border: 1px solid #1E3A5F;
-            color: #CCD6F6;
-            border-radius: 4px;
-        }
-        
-        /* Secondary text */
-        .secondary-text {
-            color: #8892B0;
-        }
-        
-        /* Tabs styling */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 8px;
-            background-color: #112240;
-        }
-        
-        .stTabs [data-baseweb="tab"] {
-            color: #8892B0;
-            border: 1px solid #1E3A5F;
-            border-radius: 4px;
-            padding: 8px 16px;  /* Add padding for better text spacing */
-            margin: 0 4px;      /* Add margin between tabs */
-            min-width: fit-content;  /* Ensure tab fits text */
-            white-space: nowrap;     /* Prevent text wrapping */
-        }
-        
-        .stTabs [data-baseweb="tab"]:hover {
-            color: #64FFDA;
-        }
-        
-        .stTabs [aria-selected="true"] {
-            color: #64FFDA;
-            border-color: #64FFDA;
-        }
-        
-        /* MultiSelect */
-        .stMultiSelect {
-            background-color: #112240;
-            border-radius: 4px;
-        }
-        
-        .stMultiSelect [data-baseweb="tag"] {
-            background-color: #1E3A5F;
-            border: none;
-            color: #64FFDA;
-            margin: 2px;  /* Add spacing between selected items */
-            padding: 4px 8px;  /* Add padding for better text spacing */
-        }
-        
-        /* Strategy selection buttons */
-        div[data-testid="stHorizontalBlock"] button {
-            margin: 0 4px;  /* Add spacing between strategy buttons */
-            padding: 8px 16px;  /* Add padding for better text spacing */
-        }
-        
-        [data-testid="stVerticalBlock"] div:has(div.status-emoji) {
-            padding-top: 25px;
-        }
-        .status-emoji {
-            font-size: 1.2rem;
-            line-height: 1;
+            color: var(--cyan);
+            border: 1px solid var(--cyan);
         }
         </style>
     """, unsafe_allow_html=True)
@@ -470,90 +303,90 @@ def main():
                 st.error("Something went wrong ❌")
                 valid_data = False
 
-        if valid_data:
-            date_info = get_date_info(data)
-            
-            # Time Period inputs
-            col1, col2 = st.columns(2)
-            with col1:
-                start_date = st.date_input(
-                    "Start date",
-                    value=datetime.now() - timedelta(days=365 * 5),
-                    min_value=date_info['data_start'],
-                    max_value=date_info['data_end'],
-                    help="Select start date"
-                )
-            
-            with col2:
-                end_date = st.date_input(
-                    "End date",
-                    value=date_info['data_end'],
-                    min_value=start_date,
-                    max_value=date_info['data_end'],
-                    help="Select end date"
-                )
-
-            try:
-                start_date, end_date, messages = validate_dates(start_date, end_date, data)
-                
-                if start_date >= end_date:
-                    st.error("Start date must be before end date")
-                    valid_data = False
-                else:
-                    for message in messages:
-                        st.warning(message)
-                    
-                    data = data.loc[start_date:end_date]
-                
-            except ValueError as e:
-                st.error(str(e))
-                valid_data = False
-
             if valid_data:
-                # Investment inputs
+                date_info = get_date_info(data)
+                
+                # Time Period inputs
                 col1, col2 = st.columns(2)
-                
                 with col1:
-                    initial_investment = st.number_input(
-                        "Initial ($)",
-                        min_value=0,
-                        value=10000,
-                        step=1000,
-                        help="One-time investment at start"
+                    start_date = st.date_input(
+                        "Start date",
+                        value=datetime.now() - timedelta(days=365 * 5),
+                        min_value=date_info['data_start'],
+                        max_value=date_info['data_end'],
+                        help="Select start date"
                     )
-                    
-                    if initial_investment > 0:
-                        shares = initial_investment / data['Price'].iloc[0]
-                        st.caption(f"≈ {shares:.1f} shares at starting price")
-
+                
                 with col2:
-                    monthly_investment = st.number_input(
-                        "Monthly ($)",
-                        min_value=0,
-                        value=1000,
-                        step=100,
-                        help="Monthly investment amount"
+                    end_date = st.date_input(
+                        "End date",
+                        value=date_info['data_end'],
+                        min_value=start_date,
+                        max_value=date_info['data_end'],
+                        help="Select end date"
                     )
+
+                try:
+                    start_date, end_date, messages = validate_dates(start_date, end_date, data)
                     
-                    if monthly_investment > 0:
-                        shares = monthly_investment / data['Price'].iloc[0]
-                        st.caption(f"≈ {shares:.1f} shares at starting price")
-                
-                # Investment Summary metrics
-                total_months = (end_date - start_date).days / 30.44
-                total_investment = initial_investment + (monthly_investment * total_months)
-                
-                summary_col1, summary_col2 = st.columns(2)
-                with summary_col1:
-                    st.metric(
-                        "Investment Period",
-                        f"{total_months:.1f} mo"
-                    )
-                with summary_col2:
-                    st.metric(
-                        "Total Investment",
-                        f"${total_investment:,.0f}"
-                    )
+                    if start_date >= end_date:
+                        st.error("Start date must be before end date")
+                        valid_data = False
+                    else:
+                        for message in messages:
+                            st.warning(message)
+                        
+                        data = data.loc[start_date:end_date]
+                    
+                except ValueError as e:
+                    st.error(str(e))
+                    valid_data = False
+
+                if valid_data:
+                    # Investment inputs
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        initial_investment = st.number_input(
+                            "Initial ($)",
+                            min_value=0,
+                            value=10000,
+                            step=1000,
+                            help="One-time investment at start"
+                        )
+                        
+                        if initial_investment > 0:
+                            shares = initial_investment / data['Price'].iloc[0]
+                            st.caption(f"≈ {shares:.1f} shares at starting price")
+
+                    with col2:
+                        monthly_investment = st.number_input(
+                            "Monthly ($)",
+                            min_value=0,
+                            value=1000,
+                            step=100,
+                            help="Monthly investment amount"
+                        )
+                        
+                        if monthly_investment > 0:
+                            shares = monthly_investment / data['Price'].iloc[0]
+                            st.caption(f"≈ {shares:.1f} shares at starting price")
+                    
+                    # Investment Summary metrics
+                    total_months = (end_date - start_date).days / 30.44
+                    total_investment = initial_investment + (monthly_investment * total_months)
+                    
+                    summary_col1, summary_col2 = st.columns(2)
+                    with summary_col1:
+                        st.metric(
+                            "Investment Period",
+                            f"{total_months:.1f} mo"
+                        )
+                    with summary_col2:
+                        st.metric(
+                            "Total Investment",
+                            f"${total_investment:,.0f}"
+                        )
 
     # Main page content
     strategies = st.multiselect(
