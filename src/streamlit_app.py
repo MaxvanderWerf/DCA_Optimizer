@@ -545,31 +545,18 @@ def main():
                             key=f"rsi_upper_{i}"
                         )
                     
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        rsi_window = st.number_input(
-                            "RSI Window (days)",
-                            min_value=2,
-                            max_value=50,
-                            value=14,
-                            key=f"rsi_window_{i}"
-                        )
-                    with col2:
-                        oversold_scale = st.number_input(
-                            "Oversold Investment Scale",
-                            min_value=0.1,
-                            max_value=5.0,
-                            value=2.0,
-                            key=f"oversold_scale_{i}"
-                        )
-                    
-                    overbought_scale = st.number_input(
-                        "Overbought Investment Scale",
-                        min_value=0.1,
-                        max_value=1.0,
-                        value=0.5,
-                        key=f"overbought_scale_{i}"
+                    # Using a single column for RSI Window
+                    rsi_window = st.number_input(
+                        "RSI Window (days)",
+                        min_value=2,
+                        max_value=50,
+                        value=14,
+                        key=f"rsi_window_{i}"
                     )
+                    
+                    # Removed oversold and overbought scale inputs - using default values instead
+                    oversold_scale = 2.0  # Default value
+                    overbought_scale = 0.5  # Default value
 
                     # Store strategy variation
                     internal_name = f"rsi_{rsi_lower}_{rsi_upper}_{rsi_window}"
@@ -583,11 +570,11 @@ def main():
                         'overbought_scale': overbought_scale
                     }
             
-            # Add variation button
-            col1, col2 = st.columns([3, 1])
-            with col2:
-                if st.button("Add RSI Variation", key="add_rsi") and st.session_state.rsi_variations < 3:
-                    st.session_state.rsi_variations += 1
+            # Add variation button - improved styling
+            if st.session_state.rsi_variations < 3:
+                st.button("Add RSI Variation", key="add_rsi", 
+                         on_click=lambda: setattr(st.session_state, 'rsi_variations', st.session_state.rsi_variations + 1),
+                         use_container_width=True)
 
         if "mean_reversion" in base_strategies:
             st.subheader("Mean Reversion Settings")
@@ -613,32 +600,10 @@ def main():
                             key=f"ma_type_{i}"
                         )
                     
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        deviation_threshold = st.number_input(
-                            "Deviation Threshold",
-                            min_value=0.01,
-                            max_value=0.5,
-                            value=0.1,
-                            step=0.01,
-                            key=f"deviation_threshold_{i}"
-                        )
-                    with col2:
-                        max_scale_up = st.number_input(
-                            "Maximum Scale Up",
-                            min_value=1.0,
-                            max_value=5.0,
-                            value=2.0,
-                            key=f"max_scale_up_{i}"
-                        )
-                    
-                    max_scale_down = st.number_input(
-                        "Maximum Scale Down",
-                        min_value=0.1,
-                        max_value=1.0,
-                        value=0.5,
-                        key=f"max_scale_down_{i}"
-                    )
+                    # Removed deviation threshold, max scale up/down inputs - using default values
+                    deviation_threshold = 0.1  # Default value
+                    max_scale_up = 2.0  # Default value
+                    max_scale_down = 0.5  # Default value
 
                     # Store strategy variation
                     internal_name = f"mean_reversion_{ma_window}_{ma_type}"
@@ -652,11 +617,11 @@ def main():
                         'max_scale_down': max_scale_down
                     }
             
-            # Add variation button
-            col1, col2 = st.columns([3, 1])
-            with col2:
-                if st.button("Add MA Variation", key="add_ma") and st.session_state.ma_variations < 3:
-                    st.session_state.ma_variations += 1
+            # Add variation button - improved styling
+            if st.session_state.ma_variations < 3:
+                st.button("Add MA Variation", key="add_ma", 
+                         on_click=lambda: setattr(st.session_state, 'ma_variations', st.session_state.ma_variations + 1),
+                         use_container_width=True)
 
         # Add standard strategy if selected
         if "standard" in base_strategies:
