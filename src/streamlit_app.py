@@ -276,13 +276,38 @@ def set_custom_style():
             border-color: var(--darker-navy) transparent transparent transparent;
         }
         
-        /* Tooltip section headers */
+        /* Tooltip section with reduced spacing */
+        .tooltip-section {
+            margin-top: 2px;
+            margin-bottom: 2px;
+        }
+        
+        /* Tooltip section child elements (stats) */
+        .tooltip-section > div {
+            margin: 2px 0;
+            line-height: 1.3;
+        }
+        
+        /* Compact version for rules */
+        .tooltip-section.compact {
+            margin-top: 3px;
+            font-size: 0.85em;
+            color: var(--light-slate);
+        }
+        
+        /* Compact version child elements */
+        .tooltip-section.compact > div {
+            margin: 1px 0;
+            line-height: 1.2;
+        }
+        
+        /* Tooltip headers with reduced spacing */
         .tooltip-header {
             color: white;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 3px;
+            padding-bottom: 2px;
         }
         
         /* Tooltip data rows */
@@ -445,14 +470,17 @@ def create_tooltip_content(log: InvestmentLog) -> str:
     """Create formatted tooltip content with detailed information about the transaction"""
     portfolio_value = log.shares * log.price + log.cash_balance
     
-    # Portfolio section
+    # Portfolio section with reduced spacing
     tooltip = "<div class='tooltip-header'>Portfolio Status</div>"
-    tooltip += f"<p>Cash balance: <strong>€{log.cash_balance:.2f}</strong></p>"
-    tooltip += f"<p>Portfolio value: <strong>€{portfolio_value:.2f}</strong></p>"
+    tooltip += "<div class='tooltip-section'>"
+    tooltip += f"<div>Cash balance: <strong>€{log.cash_balance:.2f}</strong></div>"
+    tooltip += f"<div>Portfolio value: <strong>€{portfolio_value:.2f}</strong></div>"
+    tooltip += "</div>"
     
-    # Strategy analysis section
+    # Strategy analysis section with reduced spacing
     if log.metrics:
-        tooltip += "<div class='tooltip-header' style='margin-top:8px;'>Strategy Analysis</div>"
+        tooltip += "<div class='tooltip-header' style='margin-top:6px;'>Strategy Analysis</div>"
+        tooltip += "<div class='tooltip-section'>"
         
         if "RSI" in log.metrics:
             rsi = log.metrics['RSI']
@@ -467,17 +495,18 @@ def create_tooltip_content(log: InvestmentLog) -> str:
                 rsi_status = "Overbought (Caution)"
                 rsi_class = "buy"
             
-            tooltip += f"<p>Current RSI: <strong>{rsi:.1f}</strong></p>"
-            tooltip += f"<p>Status: <strong class='{rsi_class}'>{rsi_status}</strong></p>"
+            tooltip += f"<div>Current RSI: <strong>{rsi:.1f}</strong></div>"
+            tooltip += f"<div>Status: <strong class='{rsi_class}'>{rsi_status}</strong></div>"
             
             if "Investment Scale" in log.metrics:
                 scale = log.metrics['Investment Scale']
-                tooltip += f"<p>Investment scale: <strong>{scale:.2f}x</strong></p>"
+                tooltip += f"<div>Investment scale: <strong>{scale:.2f}x</strong></div>"
             
-            tooltip += "<div style='font-size:0.9em;margin-top:5px;'>"
-            tooltip += "<p>RSI &lt; 30: Oversold - invest more</p>"
-            tooltip += "<p>RSI &gt; 70: Overbought - invest less</p>"
-            tooltip += "<p>30-70: Normal conditions</p>"
+            tooltip += "</div>"
+            tooltip += "<div class='tooltip-section compact'>"
+            tooltip += "<div>RSI &lt; 30: Oversold - invest more</div>"
+            tooltip += "<div>RSI &gt; 70: Overbought - invest less</div>"
+            tooltip += "<div>30-70: Normal conditions</div>"
             tooltip += "</div>"
             
         elif "Deviation" in log.metrics:
@@ -487,23 +516,26 @@ def create_tooltip_content(log: InvestmentLog) -> str:
             
             dev_class = "tooltip-emphasis" if deviation < 0 else "buy"
             
-            tooltip += f"<p>Price deviation: <strong class='{dev_class}'>{dev_pct:.1f}%</strong></p>"
-            tooltip += f"<p>Direction: <strong>{direction}</strong></p>"
+            tooltip += f"<div>Price deviation: <strong class='{dev_class}'>{dev_pct:.1f}%</strong></div>"
+            tooltip += f"<div>Direction: <strong>{direction}</strong></div>"
             
             if "MA" in log.metrics:
                 ma = log.metrics['MA']
-                tooltip += f"<p>Moving average: <strong>€{ma:.2f}</strong></p>"
-                tooltip += f"<p>Current price: <strong>€{log.price:.2f}</strong></p>"
+                tooltip += f"<div>Moving average: <strong>€{ma:.2f}</strong></div>"
+                tooltip += f"<div>Current price: <strong>€{log.price:.2f}</strong></div>"
             
-            tooltip += "<div style='font-size:0.9em;margin-top:5px;'>"
-            tooltip += "<p>Below average: Buy more</p>"
-            tooltip += "<p>Above average: Buy less</p>"
+            tooltip += "</div>"
+            tooltip += "<div class='tooltip-section compact'>"
+            tooltip += "<div>Below average: Buy more</div>"
+            tooltip += "<div>Above average: Buy less</div>"
             tooltip += "</div>"
     
-    # Decision section for skipped investments
+    # Decision section for skipped investments with reduced spacing
     if log.action == "skip":
-        tooltip += "<div class='tooltip-header' style='margin-top:8px;'>Decision</div>"
-        tooltip += "<p style='color:var(--red);'>No investment this period</p>"
+        tooltip += "<div class='tooltip-header' style='margin-top:6px;'>Decision</div>"
+        tooltip += "<div class='tooltip-section'>"
+        tooltip += "<div style='color:var(--red);'>No investment this period</div>"
+        tooltip += "</div>"
     
     return tooltip
 
