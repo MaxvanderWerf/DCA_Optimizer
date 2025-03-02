@@ -11,6 +11,7 @@ This project explores alternatives to standard Dollar-Cost Averaging (DCA) for m
 - ETF Data Retrieval: Fetches historical ETF price data from Yahoo Finance.
 - DCA Strategy Simulation: Simulates multiple DCA strategies including standard, volatility-adjusted, and trend-following.
 - Performance Comparison: Evaluates and compares the performance of different DCA strategies.
+- Time in Market vs Timing Analysis: Analyzes strategy effectiveness in terms of market participation and timing.
 - Visualization: Generates charts to illustrate strategy performance.
 
 ## Strategy Overview

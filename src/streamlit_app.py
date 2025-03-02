@@ -256,6 +256,122 @@ def format_performance_metrics(performance_metrics: pd.DataFrame) -> pd.DataFram
     return formatted_df
 
 
+def create_timing_analysis_plot(simulation_results, performance_metrics):
+    """
+    Creates a visualization comparing time in market vs timing effectiveness.
+    
+    Args:
+        simulation_results: Dictionary of strategy results
+        performance_metrics: DataFrame of calculated metrics
+        
+    Returns:
+        plotly figure object
+    """
+    # Create a figure for the timing analysis
+    fig = go.Figure()
+    
+    strategies = list(performance_metrics.index)
+    
+    # Add time invested percentage bar
+    fig.add_trace(go.Bar(
+        x=strategies,
+        y=performance_metrics['Time Invested (%)'],
+        name='Time Invested (%)',
+        marker_color='#64FFDA'
+    ))
+    
+    # Add price efficiency percentage bar
+    fig.add_trace(go.Bar(
+        x=strategies,
+        y=performance_metrics['Price Efficiency (%)'],
+        name='Price Efficiency (%)',
+        marker_color='#FF6B6B'
+    ))
+    
+    # Add market participation percentage bar
+    fig.add_trace(go.Bar(
+        x=strategies,
+        y=performance_metrics['Market Participation (%)'],
+        name='Market Participation (%)',
+        marker_color='#FFD166'
+    ))
+    
+    # Update layout
+    fig.update_layout(
+        title='Time in Market vs Timing Effectiveness',
+        xaxis_title='Strategy',
+        yaxis_title='Percentage (%)',
+        barmode='group',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5
+        ),
+        plot_bgcolor='#112240',
+        paper_bgcolor='#112240',
+        font_color='white'
+    )
+    
+    return fig
+
+
+def display_timing_analysis(performance_metrics):
+    """
+    Displays an analysis of time in market vs timing metrics.
+    
+    Args:
+        performance_metrics: DataFrame containing the metrics
+    """
+    st.markdown("""
+    ### Time in Market vs Timing the Market
+    
+    These metrics help compare the effectiveness of simply staying invested (time in market) 
+    versus trying to get better entry points (timing the market):
+    """)
+    
+    # Create columns for each metric
+    col1, col2, col3 = st.columns(3)
+    
+    # Display metrics for each strategy
+    for strategy in performance_metrics.index:
+        metrics = performance_metrics.loc[strategy]
+        with col1:
+            st.metric(
+                f"{strategy}: Time Invested",
+                f"{metrics['Time Invested (%)']:.1f}%", 
+                help="Percentage of time with money in the market vs cash"
+            )
+        
+        with col2:
+            st.metric(
+                f"{strategy}: Price Efficiency", 
+                f"{metrics['Price Efficiency (%)']:.1f}%",
+                help="How well the strategy bought at below-average prices"
+            )
+        
+        with col3:
+            st.metric(
+                f"{strategy}: Market Participation", 
+                f"{metrics['Market Participation (%)']:.1f}%",
+                help="Percentage of market up-days the strategy was invested for"
+            )
+    
+    # Add explanation
+    st.markdown("""
+    #### What These Metrics Mean:
+    
+    * **Time Invested**: Higher values mean more time with money in the market rather than in cash
+    * **Price Efficiency**: Positive values mean buying at below-average prices (good timing)
+    * **Market Participation**: Higher values mean better participation in market up-days
+    
+    > *Historical research suggests that time in the market often beats timing the market, 
+    but a balanced approach that maintains high market participation while making tactical 
+    adjustments can be effective.*
+    """)
+
+
 def main():
     set_custom_style()
     
@@ -388,54 +504,198 @@ def main():
                             f"${total_investment:,.0f}"
                         )
 
-    # Main page content
-    strategies = st.multiselect(
-        "Select strategies to simulate:",
-        ["standard", "rsi", "mean_reversion"],
-        default=["standard"],
-        help="Choose one or more investment strategies to simulate and compare"
-    )
+        # Strategy Selection and Settings
+        st.header("Strategy Settings")
+        
+        base_strategies = st.multiselect(
+            "Select base strategies to simulate:",
+            ["standard", "rsi", "mean_reversion"],
+            default=["standard"],
+            help="Choose one or more investment strategies to simulate and compare"
+        )
+
+        # Dictionary to store strategy variations
+        strategy_variations = {}
+        strategy_params = {}
+
+        # Strategy-specific settings with variations
+        if "rsi" in base_strategies:
+            st.subheader("RSI Settings")
+            
+            if 'rsi_variations' not in st.session_state:
+                st.session_state.rsi_variations = 1
+            
+            for i in range(st.session_state.rsi_variations):
+                with st.expander(f"RSI Strategy #{i+1} Settings"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        rsi_lower = st.number_input(
+                            "RSI Lower Bound",
+                            min_value=0,
+                            max_value=100,
+                            value=30,
+                            key=f"rsi_lower_{i}"
+                        )
+                    with col2:
+                        rsi_upper = st.number_input(
+                            "RSI Upper Bound",
+                            min_value=0,
+                            max_value=100,
+                            value=70,
+                            key=f"rsi_upper_{i}"
+                        )
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        rsi_window = st.number_input(
+                            "RSI Window (days)",
+                            min_value=2,
+                            max_value=50,
+                            value=14,
+                            key=f"rsi_window_{i}"
+                        )
+                    with col2:
+                        oversold_scale = st.number_input(
+                            "Oversold Investment Scale",
+                            min_value=0.1,
+                            max_value=5.0,
+                            value=2.0,
+                            key=f"oversold_scale_{i}"
+                        )
+                    
+                    overbought_scale = st.number_input(
+                        "Overbought Investment Scale",
+                        min_value=0.1,
+                        max_value=1.0,
+                        value=0.5,
+                        key=f"overbought_scale_{i}"
+                    )
+
+                    # Store strategy variation
+                    internal_name = f"rsi_{rsi_lower}_{rsi_upper}_{rsi_window}"
+                    display_name = f"RSI ({rsi_lower}-{rsi_upper}, {rsi_window}d)"
+                    strategy_variations[display_name] = "rsi"
+                    strategy_params[display_name] = {
+                        'lower_bound': rsi_lower,
+                        'upper_bound': rsi_upper,
+                        'rsi_window': rsi_window,
+                        'oversold_scale': oversold_scale,
+                        'overbought_scale': overbought_scale
+                    }
+            
+            # Add variation button
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button("Add RSI Variation", key="add_rsi") and st.session_state.rsi_variations < 3:
+                    st.session_state.rsi_variations += 1
+
+        if "mean_reversion" in base_strategies:
+            st.subheader("Mean Reversion Settings")
+            
+            if 'ma_variations' not in st.session_state:
+                st.session_state.ma_variations = 1
+            
+            for i in range(st.session_state.ma_variations):
+                with st.expander(f"Mean Reversion Strategy #{i+1} Settings"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        ma_window = st.number_input(
+                            "Moving Average Window (days)",
+                            min_value=5,
+                            max_value=200,
+                            value=20,
+                            key=f"ma_window_{i}"
+                        )
+                    with col2:
+                        ma_type = st.selectbox(
+                            "Moving Average Type",
+                            options=['simple', 'exponential', 'weighted'],
+                            key=f"ma_type_{i}"
+                        )
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        deviation_threshold = st.number_input(
+                            "Deviation Threshold",
+                            min_value=0.01,
+                            max_value=0.5,
+                            value=0.1,
+                            step=0.01,
+                            key=f"deviation_threshold_{i}"
+                        )
+                    with col2:
+                        max_scale_up = st.number_input(
+                            "Maximum Scale Up",
+                            min_value=1.0,
+                            max_value=5.0,
+                            value=2.0,
+                            key=f"max_scale_up_{i}"
+                        )
+                    
+                    max_scale_down = st.number_input(
+                        "Maximum Scale Down",
+                        min_value=0.1,
+                        max_value=1.0,
+                        value=0.5,
+                        key=f"max_scale_down_{i}"
+                    )
+
+                    # Store strategy variation
+                    internal_name = f"mean_reversion_{ma_window}_{ma_type}"
+                    display_name = f"Mean Reversion ({ma_window}d, {ma_type})"
+                    strategy_variations[display_name] = "mean_reversion"
+                    strategy_params[display_name] = {
+                        'ma_window': ma_window,
+                        'ma_type': ma_type,
+                        'deviation_threshold': deviation_threshold,
+                        'max_scale_up': max_scale_up,
+                        'max_scale_down': max_scale_down
+                    }
+            
+            # Add variation button
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button("Add MA Variation", key="add_ma") and st.session_state.ma_variations < 3:
+                    st.session_state.ma_variations += 1
+
+        # Add standard strategy if selected
+        if "standard" in base_strategies:
+            strategy_variations["Standard DCA"] = "standard"
 
     if st.button("Run Simulation", key="run_sim", help="Click to run the simulation"):
         with st.spinner('Running simulation...'):
             # Create logger
             logger = InvestmentLogger()
             
-            # Run simulation with logger
-            simulation_results = simulate_dca_strategies(data, strategies,
-                                                       investment_amount=monthly_investment,
-                                                       investment_frequency='BMS',
-                                                       initial_investment=initial_investment,
-                                                       logger=logger)
+            # Run simulation with variations
+            simulation_results = {}
+            for variation_name, base_strategy in strategy_variations.items():
+                params = strategy_params.get(variation_name, {})
+                
+                # Run single strategy simulation
+                result = simulate_dca_strategies(
+                    data,
+                    [base_strategy],  # Pass as single-item list
+                    investment_amount=monthly_investment,
+                    investment_frequency='BMS',
+                    initial_investment=initial_investment,
+                    logger=logger,
+                    strategy_params={base_strategy: params}  # Wrap params for single strategy
+                )
+                
+                # Extract the result for this variation
+                simulation_results[variation_name] = result[base_strategy]
 
             # Compare performances
             performance_metrics = compare_performances(simulation_results)
 
-            # Display results
+            # Display results with variation names
             st.subheader("Performance Metrics")
             displayed_metrics = ['Total Return', 'Annualized Return', 'Total Gain (€)', 
-                                'Final Portfolio Value', 'Total Invested']
+                               'Final Portfolio Value', 'Total Invested']
             
             # Format and display metrics
             formatted_metrics = format_performance_metrics(performance_metrics[displayed_metrics])
-            
-            # Add custom CSS to style the dataframe
-            st.markdown("""
-                <style>
-                .dataframe {
-                    font-size: 16px !important;
-                }
-                .dataframe td {
-                    text-align: right !important;
-                    padding: 8px 12px !important;
-                }
-                .dataframe th {
-                    text-align: left !important;
-                    padding: 8px 12px !important;
-                    font-weight: 600 !important;
-                }
-                </style>
-            """, unsafe_allow_html=True)
             
             st.dataframe(
                 formatted_metrics,
@@ -443,7 +703,7 @@ def main():
                 use_container_width=True
             )
 
-            # Create interactive plots
+            # Create and display interactive plots with variations
             portfolio_value_plot = create_interactive_portfolio_value_plot(simulation_results, st.session_state.symbol)
             investment_decisions_plot = create_interactive_investment_decisions_plot(simulation_results, st.session_state.symbol)
 
@@ -457,16 +717,23 @@ def main():
             with tab2:
                 st.subheader("Investment Decisions")
                 
-                # Create a dictionary of logs by strategy
+                # Create a dictionary of logs by strategy variation
                 logs_by_strategy = {
-                    strategy: logger.get_logs_for_strategy(strategy)
-                    for strategy in strategies
+                    variation_name: logger.get_logs_for_strategy(base_strategy)
+                    for variation_name, base_strategy in strategy_variations.items()
                 }
                 
                 if any(logs_by_strategy.values()):
                     display_strategy_logs(logs_by_strategy)
                 else:
                     st.info("No investment decisions logged for any strategy")
+
+            # Add timing analysis
+            st.subheader("Timing Analysis")
+            timing_plot = create_timing_analysis_plot(simulation_results, performance_metrics)
+            st.plotly_chart(timing_plot, use_container_width=True)
+            
+            display_timing_analysis(performance_metrics)
 
 
 if __name__ == "__main__":
