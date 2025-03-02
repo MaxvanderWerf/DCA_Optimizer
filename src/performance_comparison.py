@@ -19,12 +19,39 @@ import numpy as np
 from typing import Dict
 
 
-def compare_performances(simulation_results: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+def count_contribution_opportunities(start_date, end_date, freq='BMS'):
+    """
+    Count the number of contribution opportunities in a date range based on a frequency rule.
+    
+    Args:
+        start_date: The start date of the simulation
+        end_date: The end date of the simulation
+        freq: The frequency rule for contributions (default: 'BMS' - business month start)
+        
+    Returns:
+        int: The number of contribution opportunities (excluding initial investment)
+    """
+    # Generate dates according to the frequency rule
+    contribution_dates = pd.date_range(start=start_date, end=end_date, freq=freq)
+    
+    # If the first date is the same as start_date, it's the initial investment date, so exclude it
+    # Otherwise, all dates are regular contribution opportunities
+    if contribution_dates.size > 0 and pd.Timestamp(start_date).normalize() == contribution_dates[0].normalize():
+        return len(contribution_dates) - 1  # Exclude the first date (initial investment)
+    
+    return len(contribution_dates)  # All dates are contribution opportunities
+
+
+def compare_performances(simulation_results: Dict[str, pd.DataFrame], 
+                         initial_investment: float = 10000, 
+                         monthly_investment: float = 1000) -> pd.DataFrame:
     """
     Compares the performance of different DCA strategies.
 
     Args:
         simulation_results (Dict[str, pd.DataFrame]): Dictionary of strategy names and their respective performance DataFrames
+        initial_investment (float): The initial investment amount from UI
+        monthly_investment (float): The monthly investment amount from UI
 
     Returns:
         pd.DataFrame: DataFrame containing performance metrics for each strategy
@@ -47,6 +74,30 @@ def compare_performances(simulation_results: Dict[str, pd.DataFrame]) -> pd.Data
             all_prices = pd.concat([all_prices, result['Price']])
     market_avg_price = all_prices.mean() if not all_prices.empty else 0
 
+    # Get investment parameters from the function arguments instead of hardcoding
+    sample_strategy = next(iter(simulation_results.values()))
+    
+    if not sample_strategy.empty:
+        # Use the parameters passed from the UI
+        # Get start and end dates
+        start_date = sample_strategy.index[0]
+        end_date = sample_strategy.index[-1]
+        
+        # Count exact number of contribution opportunities
+        contribution_count = count_contribution_opportunities(start_date, end_date, freq='BMS')
+        
+        # Calculate total available capital
+        total_available_capital = initial_investment + (monthly_investment * contribution_count)
+        
+        print(f"CALCULATION WITH UI VALUES:")
+        print(f"Initial investment: {initial_investment}")
+        print(f"Monthly amount: {monthly_investment}")
+        print(f"Contribution opportunities: {contribution_count}")
+        print(f"Total available capital: {total_available_capital}")
+    else:
+        total_available_capital = 0
+        print("Warning: Could not calculate total available capital")
+
     for strategy, result in simulation_results.items():
         # Skip if result is empty
         if result.empty:
@@ -58,9 +109,13 @@ def compare_performances(simulation_results: Dict[str, pd.DataFrame]) -> pd.Data
         final_portfolio_value = result['Portfolio_Value'].iloc[-1]
         total_invested = result['Invested'].sum()
         
-        # Calculate returns
-        total_gain = final_portfolio_value - total_invested
-        total_return = total_gain / total_invested if total_invested > 0 else 0
+        # Calculate traditional return (on invested capital)
+        total_gain_on_invested = final_portfolio_value - total_invested
+        total_return_on_invested = total_gain_on_invested / total_invested if total_invested > 0 else 0
+        
+        # Calculate gain and return on total available capital (the main metrics we'll display)
+        total_gain = final_portfolio_value - total_available_capital
+        total_return = total_gain / total_available_capital if total_available_capital > 0 else 0
         
         # Calculate time in market vs timing metrics
         # Time Invested: Percentage of potential investment days where money was actually in the market
@@ -128,11 +183,13 @@ def compare_performances(simulation_results: Dict[str, pd.DataFrame]) -> pd.Data
         
         # Store metrics
         performance_metrics[strategy] = {
-            'Total Return': total_return,
+            'Total Return': total_return,  # Return on available capital
+            'Return on Invested Capital': total_return_on_invested,  # Original "Total Return" renamed 
             'Annualized Return': calculate_annualized_return(total_return, initial_date, final_date),
-            'Total Gain (€)': total_gain,
+            'Total Gain (€)': total_gain,  # Now shows gain against all available capital
             'Final Portfolio Value': final_portfolio_value,
             'Total Invested': total_invested,
+            'Total Available Capital': total_available_capital,
             'Time Invested (%)': time_invested_pct,
             'Price Efficiency (%)': price_efficiency,
             'Market Participation (%)': market_participation

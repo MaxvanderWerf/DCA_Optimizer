@@ -565,26 +565,33 @@ def format_reason_clear(log: InvestmentLog) -> str:
     return "Regular scheduled purchase"
 
 
-def format_performance_metrics(performance_metrics: pd.DataFrame) -> pd.DataFrame:
-    """Format performance metrics for display"""
-    formatted_df = performance_metrics.copy()
+def format_performance_metrics(metrics_df):
+    """
+    Format the performance metrics for display in the Streamlit app.
     
-    # Rename columns to remove units from names
-    formatted_df = formatted_df.rename(columns={
-        'Total Return': 'Total Return',
-        'Annualized Return': 'Annualized Return',
-        'Total Gain (€)': 'Total Gain',
-        'Final Portfolio Value': 'Final Portfolio Value',
-        'Total Invested': 'Total Invested'
-    })
+    Args:
+        metrics_df: DataFrame containing performance metrics to format
+        
+    Returns:
+        DataFrame with formatted metrics
+    """
+    formatted_df = metrics_df.copy()
     
     # Format percentages
-    formatted_df['Total Return'] = formatted_df['Total Return'].map('{:.1%}'.format)
-    formatted_df['Annualized Return'] = formatted_df['Annualized Return'].map('{:.1%}'.format)
+    percentage_columns = ['Total Return', 'Annualized Return', 'Time Invested (%)', 
+                        'Price Efficiency (%)', 'Market Participation (%)']
     
-    # Format currency values with 2 decimal places, no thousands separator
-    for col in ['Total Gain', 'Final Portfolio Value', 'Total Invested']:
-        formatted_df[col] = formatted_df[col].map('€{:.2f}'.format)
+    for col in percentage_columns:
+        if col in formatted_df.columns:
+            formatted_df[col] = formatted_df[col].apply(lambda x: f"{x:.2%}")
+    
+    # Format currency values
+    currency_columns = ['Total Gain (€)', 'Final Portfolio Value', 'Total Invested', 
+                      'Total Available Capital']  # Add Total Available Capital here
+    
+    for col in currency_columns:
+        if col in formatted_df.columns:
+            formatted_df[col] = formatted_df[col].apply(lambda x: f"€{x:.2f}")
     
     return formatted_df
 
@@ -869,12 +876,16 @@ def main():
                 simulation_results[variation_name] = result[base_strategy]
 
             # Compare performances
-            performance_metrics = compare_performances(simulation_results)
+            performance_metrics = compare_performances(
+                simulation_results,
+                initial_investment=initial_investment,  # Pass from UI
+                monthly_investment=monthly_investment   # Pass from UI
+            )
 
             # Display results with variation names
             st.subheader("Performance Metrics")
             displayed_metrics = ['Total Return', 'Annualized Return', 'Total Gain (€)', 
-                               'Final Portfolio Value', 'Total Invested']
+                               'Final Portfolio Value', 'Total Invested', 'Total Available Capital']
             
             # Format and display metrics
             formatted_metrics = format_performance_metrics(performance_metrics[displayed_metrics])
