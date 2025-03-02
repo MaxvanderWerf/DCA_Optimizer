@@ -144,10 +144,39 @@ def simulate_standard_dca(data: pd.DataFrame, investment_amount: float, investme
     print("\nSimulating standard DCA strategy")
     print(f"Starting with ${initial_investment:.2f}")
 
-    cash_balance = initial_investment
+    cash_balance = 0  # Start with zero, we'll invest the initial amount immediately
     shares_owned = 0
     last_valid_price = None
     transactions = []
+
+    # Get the first date's price for initial investment
+    first_date = data.index[0]
+    first_price = data.loc[first_date, 'Price']
+    
+    # Make initial investment on day one
+    if initial_investment > 0 and not pd.isna(first_price):
+        shares_to_buy = int(initial_investment // first_price)
+        cost = shares_to_buy * first_price
+        remaining_cash = initial_investment - cost
+        
+        shares_owned += shares_to_buy
+        cash_balance += remaining_cash
+        
+        if logger:
+            logger.log_decision(
+                date=first_date,
+                strategy="standard",
+                action="buy",
+                price=first_price,
+                shares=shares_to_buy,
+                cash_used=cost,
+                cash_balance=cash_balance,
+                reason=f"Initial investment"
+            )
+        transactions.append(record_transaction(first_date, first_price, shares_to_buy, shares_owned, cash_balance))
+    else:
+        # If no initial investment or no valid price, just add to cash balance
+        cash_balance += initial_investment
 
     # Resample data according to investment frequency and forward fill missing values
     resampled_data = data.resample(investment_frequency).last()
@@ -242,26 +271,53 @@ def simulate_rsi_strategy(data: pd.DataFrame,
                          logger: Optional[InvestmentLogger] = None) -> pd.DataFrame:
     """
     Simulates an RSI-based DCA strategy with configurable parameters.
-    
-    Args:
-        rsi_window: Number of periods for RSI calculation
-        oversold_scale: Multiplier for investment when RSI is below lower_bound
-        overbought_scale: Multiplier for investment when RSI is above upper_bound
-        mid_band_scale: Multiplier for investment when RSI is between bounds
-        logger: Optional logger to record investment decisions
     """
     data_copy = data.copy()
     data_copy['RSI'] = calculate_rsi(data_copy['Price'], window=rsi_window)
 
-    cash_balance = initial_investment
+    cash_balance = 0  # Start with zero, we'll invest the initial amount immediately
     shares_owned = 0
     transactions = []
     last_valid_price = None  # Track the last valid price
 
-    for date, monthly_data in data_copy.resample(investment_frequency):
+    # Make initial investment on day one
+    first_date = data_copy.index[0]
+    first_price = data_copy.loc[first_date, 'Price']
+    
+    if initial_investment > 0 and not pd.isna(first_price):
+        shares_to_buy = int(initial_investment // first_price)
+        cost = shares_to_buy * first_price
+        remaining_cash = initial_investment - cost
+        
+        shares_owned += shares_to_buy
+        cash_balance += remaining_cash
+        
+        if logger:
+            logger.log_decision(
+                date=first_date,
+                strategy="rsi",
+                action="buy",
+                price=first_price,
+                shares=shares_to_buy,
+                cash_used=cost,
+                cash_balance=cash_balance,
+                reason=f"Initial investment"
+            )
+        transactions.append(record_transaction(first_date, first_price, shares_to_buy, shares_owned, cash_balance))
+        last_valid_price = first_price
+    else:
+        # If no initial investment or no valid price, just add to cash balance
+        cash_balance += initial_investment
+
+    # Resample data according to investment frequency and forward fill missing values
+    resampled_data = data_copy.resample(investment_frequency).last()
+    resampled_data = resampled_data.fillna(method='ffill')  # Forward fill missing values
+    
+    for date, row in resampled_data.iterrows():
         cash_balance += investment_amount
-        price = monthly_data['Price'].iloc[-1]
-        rsi = monthly_data['RSI'].iloc[-1]
+        # Access values directly from the row Series
+        price = row['Price']
+        rsi = row['RSI']
 
         is_valid, cleaned_price = validate_price(price)
         
@@ -371,12 +427,6 @@ def simulate_mean_reversion_strategy(data: pd.DataFrame,
                                    max_scale_down: float = 0.5) -> pd.DataFrame:
     """
     Simulates a Mean Reversion strategy with enhanced configuration options.
-    
-    Args:
-        ma_type: Type of moving average ('simple', 'exponential', 'weighted')
-        deviation_threshold: Threshold for considering price significantly deviated
-        max_scale_up: Maximum multiplier for scaling up investment
-        max_scale_down: Minimum multiplier for scaling down investment
     """
     data_copy = data.copy()
     
@@ -389,14 +439,47 @@ def simulate_mean_reversion_strategy(data: pd.DataFrame,
     else:  # simple
         data_copy[f'MA{ma_window}'] = data_copy['Price'].rolling(window=ma_window).mean()
 
-    cash_balance = initial_investment
+    cash_balance = 0  # Start with zero, we'll invest the initial amount immediately
     shares_owned = 0
     transactions = []
 
-    for date, monthly_data in data_copy.resample(investment_frequency):
+    # Make initial investment on day one
+    first_date = data_copy.index[0]
+    first_price = data_copy.loc[first_date, 'Price']
+    
+    if initial_investment > 0 and not pd.isna(first_price):
+        shares_to_buy = int(initial_investment // first_price)
+        cost = shares_to_buy * first_price
+        remaining_cash = initial_investment - cost
+        
+        shares_owned += shares_to_buy
+        cash_balance += remaining_cash
+        
+        if logger:
+            logger.log_decision(
+                date=first_date,
+                strategy="mean_reversion",
+                action="buy",
+                price=first_price,
+                shares=shares_to_buy,
+                cash_used=cost,
+                cash_balance=cash_balance,
+                reason=f"Initial investment"
+            )
+        transactions.append(record_transaction(first_date, first_price, shares_to_buy, shares_owned, cash_balance))
+    else:
+        # If no initial investment or no valid price, just add to cash balance
+        cash_balance += initial_investment
+
+    # Resample data according to investment frequency and forward fill missing values
+    resampled_data = data_copy.resample(investment_frequency).last()
+    resampled_data = resampled_data.fillna(method='ffill')  # Forward fill missing values
+    
+    for date, row in resampled_data.iterrows():
         cash_balance += investment_amount
-        price = monthly_data['Price'].iloc[-1]
-        ma = monthly_data[f'MA{ma_window}'].iloc[-1]
+        # Access values directly from the row Series
+        price = row['Price']
+        ma = row[f'MA{ma_window}']
 
         is_valid, cleaned_price = validate_price(price)
         if not is_valid:
