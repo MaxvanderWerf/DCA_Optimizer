@@ -72,7 +72,11 @@ def simulate_dca_strategies(data: pd.DataFrame,
                 investment_frequency, 
                 initial_investment,
                 lower_bound=params['lower_bound'],
-                upper_bound=params['upper_bound']
+                upper_bound=params['upper_bound'],
+                rsi_window=params.get('rsi_window', 14),
+                oversold_scale=params.get('oversold_scale', 2.0),
+                overbought_scale=params.get('overbought_scale', 0.5),
+                logger=logger
             )
         elif strategy == "mean_reversion":
             params = strategy_params.get('mean_reversion', {'ma_window': 20})
@@ -234,7 +238,8 @@ def simulate_rsi_strategy(data: pd.DataFrame,
                          rsi_window: int = 14,
                          oversold_scale: float = 2.0,
                          overbought_scale: float = 0.5,
-                         mid_band_scale: float = 1.0) -> pd.DataFrame:
+                         mid_band_scale: float = 1.0,
+                         logger: Optional[InvestmentLogger] = None) -> pd.DataFrame:
     """
     Simulates an RSI-based DCA strategy with configurable parameters.
     
@@ -243,6 +248,7 @@ def simulate_rsi_strategy(data: pd.DataFrame,
         oversold_scale: Multiplier for investment when RSI is below lower_bound
         overbought_scale: Multiplier for investment when RSI is above upper_bound
         mid_band_scale: Multiplier for investment when RSI is between bounds
+        logger: Optional logger to record investment decisions
     """
     data_copy = data.copy()
     data_copy['RSI'] = calculate_rsi(data_copy['Price'], window=rsi_window)
@@ -266,16 +272,33 @@ def simulate_rsi_strategy(data: pd.DataFrame,
         if not is_valid:
             # Pass the last valid price to record_no_transaction
             transactions.append(record_no_transaction(date, price, shares_owned, cash_balance, last_valid_price))
+            if logger:
+                logger.log_decision(
+                    date=date,
+                    strategy="rsi",
+                    action="skip",
+                    price=None,
+                    shares=0,
+                    cash_used=0,
+                    cash_balance=cash_balance,
+                    reason="No valid price data available"
+                )
             continue
 
+        # Determine investment amount based on RSI
+        rsi_condition = "normal"
         if pd.isna(rsi):
             invest_amount = investment_amount
+            rsi_condition = "unknown (using default)"
         elif rsi < lower_bound:  # Oversold
             invest_amount = investment_amount * oversold_scale
+            rsi_condition = f"oversold (RSI: {rsi:.1f})"
         elif rsi > upper_bound:  # Overbought
             invest_amount = investment_amount * overbought_scale
+            rsi_condition = f"overbought (RSI: {rsi:.1f})"
         else:  # Normal conditions
             invest_amount = investment_amount * mid_band_scale
+            rsi_condition = f"normal (RSI: {rsi:.1f})"
 
         invest_amount = min(invest_amount, cash_balance)
         shares_to_buy = calculate_shares_to_buy(invest_amount, cleaned_price)
@@ -284,9 +307,38 @@ def simulate_rsi_strategy(data: pd.DataFrame,
             cost = shares_to_buy * cleaned_price
             cash_balance -= cost
             shares_owned += shares_to_buy
+            
+            if logger:
+                logger.log_decision(
+                    date=date,
+                    strategy="rsi",
+                    action="buy",
+                    price=cleaned_price,
+                    shares=shares_to_buy,
+                    cash_used=cost,
+                    cash_balance=cash_balance,
+                    reason=f"RSI strategy - market condition: {rsi_condition}. "
+                           f"Investing {cost:.2f} based on current RSI level.",
+                    metrics={"RSI": rsi, "Investment Scale": invest_amount / investment_amount}
+                )
+            
             transactions.append(
                 record_transaction(date, cleaned_price, shares_to_buy, shares_owned, cash_balance))
         else:
+            if logger:
+                logger.log_decision(
+                    date=date,
+                    strategy="rsi",
+                    action="skip",
+                    price=cleaned_price,
+                    shares=0,
+                    cash_used=0,
+                    cash_balance=cash_balance,
+                    reason=f"RSI strategy - insufficient funds to invest. "
+                           f"Market condition: {rsi_condition}.",
+                    metrics={"RSI": rsi}
+                )
+            
             transactions.append(record_no_transaction(date, cleaned_price, shares_owned, cash_balance, last_valid_price))
 
     final_df = pd.DataFrame(transactions)

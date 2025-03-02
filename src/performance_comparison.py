@@ -33,11 +33,120 @@ def compare_performances(simulation_results: Dict[str, pd.DataFrame]) -> pd.Data
 
     performance_metrics = {}
 
+    # Get full date range from all strategies combined
+    all_dates = pd.DatetimeIndex([])
+    for result in simulation_results.values():
+        if not result.empty:
+            all_dates = all_dates.union(result.index)
+    all_dates = all_dates.sort_values()
+    
+    # Calculate overall market average price for the entire period
+    all_prices = pd.Series(dtype=float)
+    for result in simulation_results.values():
+        if not result.empty:
+            all_prices = pd.concat([all_prices, result['Price']])
+    market_avg_price = all_prices.mean() if not all_prices.empty else 0
+
     for strategy, result in simulation_results.items():
-        metrics = calculate_metrics(result)
-        performance_metrics[strategy] = metrics
+        # Skip if result is empty
+        if result.empty:
+            continue
+            
+        # Extract data
+        initial_date = result.index[0]
+        final_date = result.index[-1]
+        final_portfolio_value = result['Portfolio_Value'].iloc[-1]
+        total_invested = result['Invested'].sum()
+        
+        # Calculate returns
+        total_gain = final_portfolio_value - total_invested
+        total_return = total_gain / total_invested if total_invested > 0 else 0
+        
+        # Calculate time in market vs timing metrics
+        # Time Invested: Percentage of potential investment days where money was actually in the market
+        # This requires daily data to be accurate, but we'll work with what we have
+        
+        # 1. Calculate time invested as percentage of days with shares owned vs. total days
+        # For strategies that always fully invest, this won't capture partial investments
+        days_with_investment = result[result['Shares_Owned'] > 0]
+        days_in_period = len(all_dates)
+        
+        # Calculate time invested percentage
+        # Compare fully invested days, partial investments, and cash positions
+        max_shares_owned = result['Shares_Owned'].max()
+        full_investment_threshold = 0.9 * max_shares_owned  # Consider 90% of max as "fully invested"
+        
+        # Count days based on investment level
+        fully_invested_days = len(result[result['Shares_Owned'] >= full_investment_threshold])
+        partially_invested_days = len(result[(result['Shares_Owned'] > 0) & 
+                                           (result['Shares_Owned'] < full_investment_threshold)])
+        
+        # Weight days by investment level (fully = 1, partially = 0.5)
+        weighted_invested_days = fully_invested_days + (partially_invested_days * 0.5)
+        
+        # Calculate time invested percentage
+        time_invested_pct = (weighted_invested_days / len(result)) * 100 if len(result) > 0 else 0
+        
+        # 2. Price Efficiency: How well the strategy buys at below-average prices
+        buy_prices = []
+        buy_amounts = []
+        
+        for i, row in result.iterrows():
+            if row['Shares_Bought'] > 0:
+                buy_prices.append(row['Price'])
+                buy_amounts.append(row['Invested'])
+        
+        # Calculate weighted average purchase price
+        if buy_amounts and sum(buy_amounts) > 0:
+            weighted_avg_price = sum(p * a for p, a in zip(buy_prices, buy_amounts)) / sum(buy_amounts)
+            # Compare to overall market average price, not just this strategy's average
+            price_efficiency = ((market_avg_price - weighted_avg_price) / market_avg_price) * 100
+        else:
+            price_efficiency = 0
+        
+        # 3. Market Participation: Percentage of market up-days where the strategy was meaningfully invested
+        # Create a resampled daily dataset to capture true daily returns
+        daily_price = result['Price'].resample('D').last().fillna(method='ffill')
+        daily_returns = daily_price.pct_change().dropna()
+        daily_shares = result['Shares_Owned'].resample('D').last().fillna(method='ffill')
+        
+        # Calculate investment level relative to maximum investment
+        investment_level = daily_shares / max_shares_owned if max_shares_owned > 0 else 0
+        
+        # Count up days and invested up days with weighting by investment level
+        up_days = daily_returns[daily_returns > 0]
+        market_participation = 0
+        
+        if not up_days.empty:
+            up_day_participation = 0
+            for day in up_days.index:
+                if day in investment_level.index:
+                    # Weight participation by investment level
+                    up_day_participation += investment_level[day]
+            
+            market_participation = (up_day_participation / len(up_days)) * 100
+        
+        # Store metrics
+        performance_metrics[strategy] = {
+            'Total Return': total_return,
+            'Annualized Return': calculate_annualized_return(total_return, initial_date, final_date),
+            'Total Gain (€)': total_gain,
+            'Final Portfolio Value': final_portfolio_value,
+            'Total Invested': total_invested,
+            'Time Invested (%)': time_invested_pct,
+            'Price Efficiency (%)': price_efficiency,
+            'Market Participation (%)': market_participation
+        }
 
     return pd.DataFrame(performance_metrics).T
+
+
+def calculate_annualized_return(total_return, start_date, end_date):
+    """Calculate the annualized return from total return and date range."""
+    years = (end_date - start_date).days / 365
+    if years > 0 and total_return > -1:
+        return (1 + total_return) ** (1 / years) - 1
+    return 0
 
 
 def calculate_metrics(data: pd.DataFrame) -> Dict[str, float]:

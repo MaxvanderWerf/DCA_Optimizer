@@ -683,10 +683,13 @@ def main():
                 st.subheader("Investment Decisions")
                 
                 # Create a dictionary of logs by strategy variation
-                logs_by_strategy = {
-                    variation_name: logger.get_logs_for_strategy(base_strategy)
-                    for variation_name, base_strategy in strategy_variations.items()
-                }
+                logs_by_strategy = {}
+                for variation_name, base_strategy in strategy_variations.items():
+                    # Map RSI variations correctly to the base "rsi" strategy logs
+                    if base_strategy == "rsi":
+                        logs_by_strategy[variation_name] = logger.get_logs_for_strategy("rsi")
+                    else:
+                        logs_by_strategy[variation_name] = logger.get_logs_for_strategy(base_strategy)
                 
                 if any(logs_by_strategy.values()):
                     display_strategy_logs(logs_by_strategy)
