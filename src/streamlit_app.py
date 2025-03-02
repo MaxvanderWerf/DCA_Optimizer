@@ -102,12 +102,25 @@ def set_custom_style():
         :root {
             --navy: #0A192F;         /* Darkest blue - main background */
             --light-navy: #112240;   /* Lighter blue - container background */
+            --darker-navy: #0D1929;  /* Even darker blue for tooltips */
             --cyan: #64FFDA;         /* Cyan - accents and highlights */
+            --light-slate: #a8b2d1;  /* Light text color */
+            --green: #43D08A;        /* Success color */
+            --red: #E06C75;          /* Error color */
         }
         
         /* Main background */
         .stApp {
             background-color: var(--navy);
+        }
+        
+        /* Make the app narrower */
+        .block-container {
+            max-width: 75% !important;
+            padding-top: 1rem;
+            padding-right: 1rem;
+            padding-left: 1rem;
+            padding-bottom: 1rem;
         }
         
         /* Main header */
@@ -140,6 +153,159 @@ def set_custom_style():
             background-color: transparent;
             color: var(--cyan);
             border: 1px solid var(--cyan);
+        }
+        
+        /* Month styling - even more minimal */
+        .month {
+            color: white;
+            font-weight: bold;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Reduce padding in columns */
+        [data-testid="column"] {
+            padding: 0.25rem !important;
+        }
+        
+        /* Transaction styling - ultra minimal */
+        .transaction {
+            padding: 5px 0;
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            cursor: pointer;
+        }
+        
+        /* Last transaction in a group */
+        .transaction:last-child {
+            border-bottom: none;
+        }
+        
+        /* Transaction amount */
+        .amount {
+            color: var(--cyan);
+            font-weight: bold;
+            display: inline;
+        }
+        
+        /* Transaction date */
+        .date {
+            color: white;
+        }
+        
+        /* Transaction shares */
+        .shares {
+            color: var(--light-slate);
+        }
+        
+        /* Reason styling */
+        .reason {
+            color: var(--light-slate);
+            margin-left: 18px;
+            margin-top: 3px;
+        }
+        
+        /* Status indicators */
+        .buy {
+            color: var(--green);
+        }
+        
+        .skip {
+            color: var(--red);
+        }
+        
+        /* Headers */
+        .header-row {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        
+        /* Info button */
+        .info-button {
+            color: var(--cyan);
+            font-size: 0.85em;
+            margin-left: 5px;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        
+        /* Custom tooltip container */
+        .tooltip-container {
+            display: inline;
+            position: relative;
+        }
+        
+        /* Custom tooltip */
+        .tooltip-content {
+            visibility: hidden;
+            width: 300px;
+            background-color: var(--darker-navy);
+            color: var(--light-slate);
+            text-align: left;
+            border-radius: 5px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
+        }
+        
+        /* Show the tooltip when hovering over the container */
+        .transaction:hover .tooltip-content {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Tooltip arrow */
+        .tooltip-content::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--darker-navy) transparent transparent transparent;
+        }
+        
+        /* Tooltip section headers */
+        .tooltip-header {
+            color: white;
+            font-weight: bold;
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 3px;
+        }
+        
+        /* Tooltip data rows */
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        
+        /* Tooltip data label */
+        .tooltip-label {
+            color: var(--light-slate);
+        }
+        
+        /* Tooltip data value */
+        .tooltip-value {
+            color: white;
+            font-weight: bold;
+        }
+        
+        /* Tooltip value emphasis */
+        .tooltip-emphasis {
+            color: var(--cyan);
         }
         </style>
     """, unsafe_allow_html=True)
@@ -183,53 +349,188 @@ def format_decision_log(log: InvestmentLog) -> str:
 
 
 def display_strategy_logs(logs_by_strategy: dict[str, List[InvestmentLog]]):
-    """Display logs for all strategies side by side, aligned by date"""
+    """Display logs for all strategies in an ultra-minimal format with custom tooltips"""
     
-    # Create a dictionary of logs indexed by date for each strategy
-    dated_logs = {}
-    all_dates = set()
+    # Group logs by month and year for each strategy
+    monthly_logs = {}
     
     for strategy, logs in logs_by_strategy.items():
-        dated_logs[strategy] = {log.date: log for log in logs}
-        all_dates.update(dated_logs[strategy].keys())
-    
-    # Sort dates
-    sorted_dates = sorted(all_dates, reverse=True)  # Most recent first
-    
-    # Create columns for each strategy
-    cols = st.columns(len(logs_by_strategy))
-    
-    # Display strategy headers and descriptions
-    for col, strategy in zip(cols, logs_by_strategy.keys()):
-        with col:
-            title = f"{strategy.replace('_', ' ').title()} Strategy"
-            st.subheader(title)
+        for log in logs:
+            month_key = log.date.strftime('%Y-%m')
+            if month_key not in monthly_logs:
+                monthly_logs[month_key] = {}
             
-            if "standard" in strategy.lower():
-                st.markdown("*Invests the same amount monthly*")
-            elif "mean_reversion" in strategy.lower():
-                st.markdown("*Adjusts investment based on price trends*")
-            elif "rsi" in strategy.lower():
-                st.markdown("*Adjusts investment based on market momentum*")
+            if strategy not in monthly_logs[month_key]:
+                monthly_logs[month_key][strategy] = []
+                
+            monthly_logs[month_key][strategy].append(log)
     
-    # Create the log text for each strategy
-    strategy_texts = {strategy: [] for strategy in logs_by_strategy.keys()}
+    # Sort months in reverse chronological order
+    sorted_months = sorted(monthly_logs.keys(), reverse=True)
     
-    # Build aligned log entries
-    for date in sorted_dates:
-        for strategy in logs_by_strategy.keys():
-            if log := dated_logs[strategy].get(date):
-                strategy_texts[strategy].append(format_decision_log(log))
+    # Create a consistent header for strategy names
+    num_strategies = len(logs_by_strategy)
+    strategy_headers = st.columns([0.7] + [3] * num_strategies)
+    
+    # Header row with light bottom border
+    st.markdown("<div class='header-row'>", unsafe_allow_html=True)
+    
+    with strategy_headers[0]:
+        st.markdown("**Month**")
+    
+    for i, strategy in enumerate(logs_by_strategy.keys(), 1):
+        with strategy_headers[i]:
+            st.markdown(f"**{strategy.replace('_', ' ').title()}**")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Create month-by-month comparison view
+    for month in sorted_months:
+        month_display = datetime.strptime(month, '%Y-%m').strftime('%B %Y')
+        
+        # Create a row with month on left and strategies on right
+        cols = st.columns([0.7] + [3] * num_strategies)
+        
+        # Display month in the left column - ultra minimal
+        with cols[0]:
+            st.markdown(f"<div class='month'>{month_display}</div>", unsafe_allow_html=True)
+        
+        # For each strategy column
+        for i, strategy in enumerate(logs_by_strategy.keys(), 1):
+            with cols[i]:
+                # Get this strategy's logs for this month
+                strategy_logs = monthly_logs[month].get(strategy, [])
+                
+                if not strategy_logs:
+                    st.markdown("<span style='color:#777777;'>No transactions</span>", unsafe_allow_html=True)
+                    continue
+                
+                # Display each transaction with minimal styling
+                for log in strategy_logs:
+                    # Get day of week and format date
+                    weekday = log.date.strftime('%a')
+                    date_str = f"{weekday} {log.date.strftime('%d %b')}"
+                    status_class = "buy" if log.action == "buy" else "skip"
+                    
+                    # Determine singular or plural for shares
+                    shares_text = "1 share" if log.shares == 1 else f"{log.shares:.0f} shares"
+                    
+                    # Create custom tooltip content
+                    tooltip_content = create_tooltip_content(log)
+                    
+                    # Transaction line with minimal elements and tooltip
+                    if log.action == "buy":
+                        st.markdown(
+                            f"<div class='transaction'>"
+                            f"<span class='date'>{date_str}</span> · "
+                            f"<span class='{status_class}'>{shares_text} @ €{log.price:.2f}</span> · "
+                            f"<span class='amount'>€{log.cash_used:.0f} invested</span>"
+                            f"<div class='reason'>{format_reason_clear(log)}</div>"
+                            f"<div class='tooltip-content'>{tooltip_content}</div>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.markdown(
+                            f"<div class='transaction'>"
+                            f"<span class='date'>{date_str}</span> · "
+                            f"<span class='{status_class}'>No investment</span>"
+                            f"<div class='tooltip-content'>{tooltip_content}</div>"
+                            f"</div>",
+                            unsafe_allow_html=True
+                        )
+
+
+def create_tooltip_content(log: InvestmentLog) -> str:
+    """Create formatted tooltip content with detailed information about the transaction"""
+    portfolio_value = log.shares * log.price + log.cash_balance
+    
+    # Portfolio section
+    tooltip = "<div class='tooltip-header'>Portfolio Status</div>"
+    tooltip += f"<p>Cash balance: <strong>€{log.cash_balance:.2f}</strong></p>"
+    tooltip += f"<p>Portfolio value: <strong>€{portfolio_value:.2f}</strong></p>"
+    
+    # Strategy analysis section
+    if log.metrics:
+        tooltip += "<div class='tooltip-header' style='margin-top:8px;'>Strategy Analysis</div>"
+        
+        if "RSI" in log.metrics:
+            rsi = log.metrics['RSI']
+            
+            # Determine RSI status
+            rsi_status = "Neutral"
+            rsi_class = ""
+            if rsi < 30:
+                rsi_status = "Oversold (Buy)"
+                rsi_class = "tooltip-emphasis"
+            elif rsi > 70:
+                rsi_status = "Overbought (Caution)"
+                rsi_class = "buy"
+            
+            tooltip += f"<p>Current RSI: <strong>{rsi:.1f}</strong></p>"
+            tooltip += f"<p>Status: <strong class='{rsi_class}'>{rsi_status}</strong></p>"
+            
+            if "Investment Scale" in log.metrics:
+                scale = log.metrics['Investment Scale']
+                tooltip += f"<p>Investment scale: <strong>{scale:.2f}x</strong></p>"
+            
+            tooltip += "<div style='font-size:0.9em;margin-top:5px;'>"
+            tooltip += "<p>RSI &lt; 30: Oversold - invest more</p>"
+            tooltip += "<p>RSI &gt; 70: Overbought - invest less</p>"
+            tooltip += "<p>30-70: Normal conditions</p>"
+            tooltip += "</div>"
+            
+        elif "Deviation" in log.metrics:
+            deviation = log.metrics['Deviation']
+            dev_pct = abs(deviation) * 100
+            direction = "Below average" if deviation < 0 else "Above average"
+            
+            dev_class = "tooltip-emphasis" if deviation < 0 else "buy"
+            
+            tooltip += f"<p>Price deviation: <strong class='{dev_class}'>{dev_pct:.1f}%</strong></p>"
+            tooltip += f"<p>Direction: <strong>{direction}</strong></p>"
+            
+            if "MA" in log.metrics:
+                ma = log.metrics['MA']
+                tooltip += f"<p>Moving average: <strong>€{ma:.2f}</strong></p>"
+                tooltip += f"<p>Current price: <strong>€{log.price:.2f}</strong></p>"
+            
+            tooltip += "<div style='font-size:0.9em;margin-top:5px;'>"
+            tooltip += "<p>Below average: Buy more</p>"
+            tooltip += "<p>Above average: Buy less</p>"
+            tooltip += "</div>"
+    
+    # Decision section for skipped investments
+    if log.action == "skip":
+        tooltip += "<div class='tooltip-header' style='margin-top:8px;'>Decision</div>"
+        tooltip += "<p style='color:var(--red);'>No investment this period</p>"
+    
+    return tooltip
+
+
+def format_reason_clear(log: InvestmentLog) -> str:
+    """Format the reason text to be more clear about the decision logic"""
+    if log.action == "skip":
+        return "No investment made"
+    
+    if log.metrics:
+        if "RSI" in log.metrics:
+            rsi = log.metrics['RSI'] 
+            if rsi < 30:
+                return f"<strong>Market dip</strong> (RSI: {rsi:.0f}) - investing more"
+            elif rsi > 70:
+                return f"<strong>Market high</strong> (RSI: {rsi:.0f}) - investing less"
             else:
-                # Add placeholder for missing dates to maintain alignment
-                date_str = date.strftime('%Y-%m-%d')
-                strategy_texts[strategy].append(f"⚪️ {date_str}: No data")
+                return f"<strong>Normal market</strong> (RSI: {rsi:.0f})"
+        elif "Deviation" in log.metrics:
+            deviation = log.metrics['Deviation']
+            dev_pct = abs(deviation) * 100
+            if deviation < 0:
+                return f"<strong>Price below average</strong> ({dev_pct:.0f}%) - buying more"
+            else:
+                return f"<strong>Price above average</strong> ({dev_pct:.0f}%) - buying less"
     
-    # Display logs in columns
-    for col, strategy in zip(cols, logs_by_strategy.keys()):
-        with col:
-            log_text = "\n\n".join(strategy_texts[strategy])
-            st.markdown(f"```\n{log_text}\n```")
+    return "Regular scheduled purchase"
 
 
 def format_performance_metrics(performance_metrics: pd.DataFrame) -> pd.DataFrame:
@@ -569,9 +870,11 @@ def main():
                 # Create a dictionary of logs by strategy variation
                 logs_by_strategy = {}
                 for variation_name, base_strategy in strategy_variations.items():
-                    # Map RSI variations correctly to the base "rsi" strategy logs
+                    # Map strategy variations correctly to the base strategy logs
                     if base_strategy == "rsi":
                         logs_by_strategy[variation_name] = logger.get_logs_for_strategy("rsi")
+                    elif base_strategy == "mean_reversion":
+                        logs_by_strategy[variation_name] = logger.get_logs_for_strategy("mean_reversion")
                     else:
                         logs_by_strategy[variation_name] = logger.get_logs_for_strategy(base_strategy)
                 
