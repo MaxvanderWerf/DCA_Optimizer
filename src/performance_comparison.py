@@ -110,6 +110,24 @@ def calculate_metrics(data: pd.DataFrame) -> Dict[str, float]:
     market_avg_price = data['Price'].mean()
     timing_effectiveness = (market_avg_price - avg_purchase_price) / market_avg_price
 
+    # Add Time in Market vs Timing Analysis section in calculate_metrics function
+    
+    # 1. Calculate percentage of time fully invested
+    time_invested_pct = len(data[data['Shares_Owned'] > 0]) / len(data) * 100
+
+    # 2. Calculate average purchase price vs market average - we already have this
+    price_efficiency = timing_effectiveness * 100  # Convert to percentage
+
+    # 3. Calculate market participation rate
+    # Check if Daily_Return exists, if not, calculate it
+    if 'Daily_Return' not in data.columns:
+        # Calculate daily returns based on Price
+        data['Daily_Return'] = data['Price'].pct_change()
+    
+    up_days = data[data['Daily_Return'] > 0]
+    invested_up_days = up_days[up_days['Shares_Owned'] > 0]
+    market_participation = len(invested_up_days) / len(up_days) * 100 if len(up_days) > 0 else 0
+
     return {
         'Total Return': total_return,
         'Annualized Return': annualized_return,
@@ -123,5 +141,8 @@ def calculate_metrics(data: pd.DataFrame) -> Dict[str, float]:
         'Investment Utilization': avg_investment_utilization,
         'Time Invested Ratio': time_invested_ratio,
         'Avg Purchase Price': avg_purchase_price,
-        'Market Timing Score': timing_effectiveness
+        'Market Timing Score': timing_effectiveness,
+        'Time Invested (%)': time_invested_pct,
+        'Price Efficiency (%)': price_efficiency,
+        'Market Participation (%)': market_participation
     }
