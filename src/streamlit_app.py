@@ -256,122 +256,6 @@ def format_performance_metrics(performance_metrics: pd.DataFrame) -> pd.DataFram
     return formatted_df
 
 
-def create_timing_analysis_plot(simulation_results, performance_metrics):
-    """
-    Creates a visualization comparing time in market vs timing effectiveness.
-    
-    Args:
-        simulation_results: Dictionary of strategy results
-        performance_metrics: DataFrame of calculated metrics
-        
-    Returns:
-        plotly figure object
-    """
-    # Create a figure for the timing analysis
-    fig = go.Figure()
-    
-    strategies = list(performance_metrics.index)
-    
-    # Add time invested percentage bar
-    fig.add_trace(go.Bar(
-        x=strategies,
-        y=performance_metrics['Time Invested (%)'],
-        name='Time Invested (%)',
-        marker_color='#64FFDA'
-    ))
-    
-    # Add price efficiency percentage bar
-    fig.add_trace(go.Bar(
-        x=strategies,
-        y=performance_metrics['Price Efficiency (%)'],
-        name='Price Efficiency (%)',
-        marker_color='#FF6B6B'
-    ))
-    
-    # Add market participation percentage bar
-    fig.add_trace(go.Bar(
-        x=strategies,
-        y=performance_metrics['Market Participation (%)'],
-        name='Market Participation (%)',
-        marker_color='#FFD166'
-    ))
-    
-    # Update layout
-    fig.update_layout(
-        title='Time in Market vs Timing Effectiveness',
-        xaxis_title='Strategy',
-        yaxis_title='Percentage (%)',
-        barmode='group',
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5
-        ),
-        plot_bgcolor='#112240',
-        paper_bgcolor='#112240',
-        font_color='white'
-    )
-    
-    return fig
-
-
-def display_timing_analysis(performance_metrics):
-    """
-    Displays an analysis of time in market vs timing metrics.
-    
-    Args:
-        performance_metrics: DataFrame containing the metrics
-    """
-    st.markdown("""
-    ### Time in Market vs Timing the Market
-    
-    These metrics help compare the effectiveness of simply staying invested (time in market) 
-    versus trying to get better entry points (timing the market):
-    """)
-    
-    # Create columns for each metric
-    col1, col2, col3 = st.columns(3)
-    
-    # Display metrics for each strategy
-    for strategy in performance_metrics.index:
-        metrics = performance_metrics.loc[strategy]
-        with col1:
-            st.metric(
-                f"{strategy}: Time Invested",
-                f"{metrics['Time Invested (%)']:.1f}%", 
-                help="Percentage of time with money in the market vs cash"
-            )
-        
-        with col2:
-            st.metric(
-                f"{strategy}: Price Efficiency", 
-                f"{metrics['Price Efficiency (%)']:.1f}%",
-                help="How well the strategy bought at below-average prices"
-            )
-        
-        with col3:
-            st.metric(
-                f"{strategy}: Market Participation", 
-                f"{metrics['Market Participation (%)']:.1f}%",
-                help="Percentage of market up-days the strategy was invested for"
-            )
-    
-    # Add explanation
-    st.markdown("""
-    #### What These Metrics Mean:
-    
-    * **Time Invested**: Higher values mean more time with money in the market rather than in cash
-    * **Price Efficiency**: Positive values mean buying at below-average prices (good timing)
-    * **Market Participation**: Higher values mean better participation in market up-days
-    
-    > *Historical research suggests that time in the market often beats timing the market, 
-    but a balanced approach that maintains high market participation while making tactical 
-    adjustments can be effective.*
-    """)
-
-
 def main():
     set_custom_style()
     
@@ -695,13 +579,6 @@ def main():
                     display_strategy_logs(logs_by_strategy)
                 else:
                     st.info("No investment decisions logged for any strategy")
-
-            # Add timing analysis
-            st.subheader("Timing Analysis")
-            timing_plot = create_timing_analysis_plot(simulation_results, performance_metrics)
-            st.plotly_chart(timing_plot, use_container_width=True)
-            
-            display_timing_analysis(performance_metrics)
 
 
 if __name__ == "__main__":
