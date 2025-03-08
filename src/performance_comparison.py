@@ -31,15 +31,71 @@ def count_contribution_opportunities(start_date, end_date, freq='BMS'):
     Returns:
         int: The number of contribution opportunities (excluding initial investment)
     """
+    # Convert to timestamps if they're not already
+    start_ts = pd.Timestamp(start_date)
+    end_ts = pd.Timestamp(end_date)
+    
     # Generate dates according to the frequency rule
-    contribution_dates = pd.date_range(start=start_date, end=end_date, freq=freq)
+    # Use inclusive='both' to ensure we include both start and end dates if they match the frequency
+    contribution_dates = pd.date_range(start=start_ts, end=end_ts, freq=freq, inclusive='both')
     
-    # If the first date is the same as start_date, it's the initial investment date, so exclude it
-    # Otherwise, all dates are regular contribution opportunities
-    if contribution_dates.size > 0 and pd.Timestamp(start_date).normalize() == contribution_dates[0].normalize():
-        return len(contribution_dates) - 1  # Exclude the first date (initial investment)
+    # Print for debugging
+    print(f"DEBUG - Raw contribution dates: {[d.strftime('%Y-%m-%d') for d in contribution_dates]}")
     
-    return len(contribution_dates)  # All dates are contribution opportunities
+    # If we're in the same month, there are no additional contribution opportunities
+    if start_ts.year == end_ts.year and start_ts.month == end_ts.month:
+        print("DEBUG - Start and end dates are in the same month, no additional contributions")
+        return 0
+    
+    # Count all months in the range (excluding the initial investment month)
+    all_months = set()
+    
+    # Start from the month after the initial investment
+    current_month = (start_ts.year, start_ts.month)
+    end_month = (end_ts.year, end_ts.month)
+    
+    # Add all months in the range (excluding the initial investment month)
+    while current_month <= end_month:
+        year, month = current_month
+        # Skip the initial investment month
+        if (year, month) != (start_ts.year, start_ts.month):
+            all_months.add((year, month))
+        
+        # Move to next month
+        month += 1
+        if month > 12:
+            year += 1
+            month = 1
+        current_month = (year, month)
+    
+    print(f"DEBUG - All months in range (excluding initial): {all_months}")
+    
+    # Check if we have any business month start dates in the range
+    if len(contribution_dates) == 0:
+        print("DEBUG - No business month start dates found in range")
+        return 0
+    
+    # If the first date is the same as start_date (same day), it's the initial investment
+    # We need to exclude it from the count
+    first_date_is_initial = False
+    if len(contribution_dates) > 0:
+        first_date_is_initial = contribution_dates[0].normalize() == start_ts.normalize()
+        if first_date_is_initial:
+            print(f"DEBUG - First date {contribution_dates[0].strftime('%Y-%m-%d')} is initial investment date")
+    
+    # Count all unique months that have a business month start date
+    # This ensures we count each month that has started, even if it's not complete
+    contribution_months = set()
+    for date in contribution_dates:
+        # Skip the initial investment date
+        if first_date_is_initial and date == contribution_dates[0]:
+            continue
+        contribution_months.add((date.year, date.month))
+    
+    print(f"DEBUG - Contribution months: {contribution_months}")
+    
+    # Return the number of unique months with contribution opportunities
+    return len(contribution_months)
 
 
 def compare_performances(simulation_results: Dict[str, pd.DataFrame], 
@@ -92,6 +148,8 @@ def compare_performances(simulation_results: Dict[str, pd.DataFrame],
         print(f"CALCULATION WITH UI VALUES:")
         print(f"Initial investment: {initial_investment}")
         print(f"Monthly amount: {monthly_investment}")
+        print(f"Start date: {start_date.strftime('%Y-%m-%d')}")
+        print(f"End date: {end_date.strftime('%Y-%m-%d')}")
         print(f"Contribution opportunities: {contribution_count}")
         print(f"Total available capital: {total_available_capital}")
     else:
@@ -108,6 +166,12 @@ def compare_performances(simulation_results: Dict[str, pd.DataFrame],
         final_date = result.index[-1]
         final_portfolio_value = result['Portfolio_Value'].iloc[-1]
         total_invested = result['Invested'].sum()
+        
+        # Add warning if total invested exceeds total available capital
+        if total_invested > total_available_capital:
+            print(f"\n⚠️ WARNING: For strategy '{strategy}', total invested (€{total_invested:.2f}) exceeds total available capital (€{total_available_capital:.2f})!")
+            print(f"This suggests a calculation error or unexpected behavior in the simulation.")
+            print(f"Please check the investment dates and amounts in the strategy simulation.")
         
         # Calculate traditional return (on invested capital)
         total_gain_on_invested = final_portfolio_value - total_invested

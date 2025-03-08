@@ -144,45 +144,49 @@ def simulate_standard_dca(data: pd.DataFrame, investment_amount: float, investme
     print("\nSimulating standard DCA strategy")
     print(f"Starting with ${initial_investment:.2f}")
 
-    cash_balance = 0  # Start with zero, we'll invest the initial amount immediately
-    shares_owned = 0
-    last_valid_price = None
-    transactions = []
-
-    # Get the first date's price for initial investment
+    # Initialize with shares already owned from initial investment
     first_date = data.index[0]
     first_price = data.loc[first_date, 'Price']
     
-    # Make initial investment on day one
+    # Calculate initial shares and cash
+    shares_owned = 0
+    cash_balance = 0
+    
     if initial_investment > 0 and not pd.isna(first_price):
-        shares_to_buy = int(initial_investment // first_price)
-        cost = shares_to_buy * first_price
-        remaining_cash = initial_investment - cost
-        
-        shares_owned += shares_to_buy
-        cash_balance += remaining_cash
-        
-        if logger:
-            logger.log_decision(
-                date=first_date,
-                strategy="standard",
-                action="buy",
-                price=first_price,
-                shares=shares_to_buy,
-                cash_used=cost,
-                cash_balance=cash_balance,
-                reason=f"Initial investment"
-            )
-        transactions.append(record_transaction(first_date, first_price, shares_to_buy, shares_owned, cash_balance))
-    else:
-        # If no initial investment or no valid price, just add to cash balance
-        cash_balance += initial_investment
-
+        shares_owned = initial_investment / first_price
+        # No remaining cash from initial investment
+    
+    transactions = []
+    
+    # Record initial portfolio state without recording a transaction
+    if not pd.isna(first_price):
+        portfolio_value = shares_owned * first_price + cash_balance
+        initial_state = {
+            'Date': first_date,
+            'Price': first_price,
+            'Invested': initial_investment,  # Count initial investment in total invested metric
+            'Shares_Bought': 0,  # No new shares bought (already accounted for in shares_owned)
+            'Shares_Owned': shares_owned,
+            'Cash_Balance': cash_balance,
+            'Portfolio_Value': portfolio_value
+        }
+        transactions.append(initial_state)
+        print(f"Initial portfolio: {shares_owned:.2f} shares at ${first_price:.2f}, value=${portfolio_value:.2f}")
+    
     # Resample data according to investment frequency and forward fill missing values
     resampled_data = data.resample(investment_frequency).last()
     resampled_data = resampled_data.fillna(method='ffill')  # Forward fill missing values
     
+    # Filter resampled data to ensure it's within the original data's date range
+    # This prevents including dates outside the selected range
+    resampled_data = resampled_data[resampled_data.index >= data.index[0]]
+    resampled_data = resampled_data[resampled_data.index <= data.index[-1]]
+    
     for date, row in resampled_data.iterrows():
+        # Skip the first date since we've already recorded the initial state
+        if date == first_date:
+            continue
+            
         cash_balance += investment_amount
         
         price = row['Price']
@@ -275,45 +279,49 @@ def simulate_rsi_strategy(data: pd.DataFrame,
     data_copy = data.copy()
     data_copy['RSI'] = calculate_rsi(data_copy['Price'], window=rsi_window)
 
-    cash_balance = 0  # Start with zero, we'll invest the initial amount immediately
-    shares_owned = 0
-    transactions = []
-    last_valid_price = None  # Track the last valid price
-
-    # Make initial investment on day one
+    # Initialize with shares already owned from initial investment
     first_date = data_copy.index[0]
     first_price = data_copy.loc[first_date, 'Price']
     
+    # Calculate initial shares and cash
+    shares_owned = 0
+    cash_balance = 0
+    
     if initial_investment > 0 and not pd.isna(first_price):
-        shares_to_buy = int(initial_investment // first_price)
-        cost = shares_to_buy * first_price
-        remaining_cash = initial_investment - cost
-        
-        shares_owned += shares_to_buy
-        cash_balance += remaining_cash
-        
-        if logger:
-            logger.log_decision(
-                date=first_date,
-                strategy="rsi",
-                action="buy",
-                price=first_price,
-                shares=shares_to_buy,
-                cash_used=cost,
-                cash_balance=cash_balance,
-                reason=f"Initial investment"
-            )
-        transactions.append(record_transaction(first_date, first_price, shares_to_buy, shares_owned, cash_balance))
-        last_valid_price = first_price
-    else:
-        # If no initial investment or no valid price, just add to cash balance
-        cash_balance += initial_investment
+        shares_owned = initial_investment / first_price
+        # No remaining cash from initial investment
+    
+    transactions = []
+    last_valid_price = first_price if not pd.isna(first_price) else None
+    
+    # Record initial portfolio state without recording a transaction
+    if not pd.isna(first_price):
+        portfolio_value = shares_owned * first_price + cash_balance
+        initial_state = {
+            'Date': first_date,
+            'Price': first_price,
+            'Invested': initial_investment,  # Count initial investment in total invested metric
+            'Shares_Bought': 0,  # No new shares bought (already accounted for in shares_owned)
+            'Shares_Owned': shares_owned,
+            'Cash_Balance': cash_balance,
+            'Portfolio_Value': portfolio_value
+        }
+        transactions.append(initial_state)
+        print(f"Initial portfolio: {shares_owned:.2f} shares at ${first_price:.2f}, value=${portfolio_value:.2f}")
 
     # Resample data according to investment frequency and forward fill missing values
     resampled_data = data_copy.resample(investment_frequency).last()
     resampled_data = resampled_data.fillna(method='ffill')  # Forward fill missing values
     
+    # Filter resampled data to ensure it's within the original data's date range
+    resampled_data = resampled_data[resampled_data.index >= data_copy.index[0]]
+    resampled_data = resampled_data[resampled_data.index <= data_copy.index[-1]]
+    
     for date, row in resampled_data.iterrows():
+        # Skip the first date since we've already recorded the initial state
+        if date == first_date:
+            continue
+            
         cash_balance += investment_amount
         # Access values directly from the row Series
         price = row['Price']
@@ -439,43 +447,48 @@ def simulate_mean_reversion_strategy(data: pd.DataFrame,
     else:  # simple
         data_copy[f'MA{ma_window}'] = data_copy['Price'].rolling(window=ma_window).mean()
 
-    cash_balance = 0  # Start with zero, we'll invest the initial amount immediately
-    shares_owned = 0
-    transactions = []
-
-    # Make initial investment on day one
+    # Initialize with shares already owned from initial investment
     first_date = data_copy.index[0]
     first_price = data_copy.loc[first_date, 'Price']
     
+    # Calculate initial shares and cash
+    shares_owned = 0
+    cash_balance = 0
+    
     if initial_investment > 0 and not pd.isna(first_price):
-        shares_to_buy = int(initial_investment // first_price)
-        cost = shares_to_buy * first_price
-        remaining_cash = initial_investment - cost
-        
-        shares_owned += shares_to_buy
-        cash_balance += remaining_cash
-        
-        if logger:
-            logger.log_decision(
-                date=first_date,
-                strategy="mean_reversion",
-                action="buy",
-                price=first_price,
-                shares=shares_to_buy,
-                cash_used=cost,
-                cash_balance=cash_balance,
-                reason=f"Initial investment"
-            )
-        transactions.append(record_transaction(first_date, first_price, shares_to_buy, shares_owned, cash_balance))
-    else:
-        # If no initial investment or no valid price, just add to cash balance
-        cash_balance += initial_investment
+        shares_owned = initial_investment / first_price
+        # No remaining cash from initial investment
+    
+    transactions = []
+    
+    # Record initial portfolio state without recording a transaction
+    if not pd.isna(first_price):
+        portfolio_value = shares_owned * first_price + cash_balance
+        initial_state = {
+            'Date': first_date,
+            'Price': first_price,
+            'Invested': initial_investment,  # Count initial investment in total invested metric
+            'Shares_Bought': 0,  # No new shares bought (already accounted for in shares_owned)
+            'Shares_Owned': shares_owned,
+            'Cash_Balance': cash_balance,
+            'Portfolio_Value': portfolio_value
+        }
+        transactions.append(initial_state)
+        print(f"Initial portfolio: {shares_owned:.2f} shares at ${first_price:.2f}, value=${portfolio_value:.2f}")
 
     # Resample data according to investment frequency and forward fill missing values
     resampled_data = data_copy.resample(investment_frequency).last()
     resampled_data = resampled_data.fillna(method='ffill')  # Forward fill missing values
     
+    # Filter resampled data to ensure it's within the original data's date range
+    resampled_data = resampled_data[resampled_data.index >= data_copy.index[0]]
+    resampled_data = resampled_data[resampled_data.index <= data_copy.index[-1]]
+    
     for date, row in resampled_data.iterrows():
+        # Skip the first date since we've already recorded the initial state
+        if date == first_date:
+            continue
+            
         cash_balance += investment_amount
         # Access values directly from the row Series
         price = row['Price']
